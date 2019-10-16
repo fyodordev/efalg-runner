@@ -20,15 +20,32 @@ import json
 import subprocess
 import os
 
-with open('config.json', 'r') as outfile:
-    config = json.load(outfile)
-    argslist = [
-        'javac',
-        config['program-location'],
-        '-d',
-        os.path.dirname(os.path.abspath(__file__))
+config = None
+with open('config.json', 'r') as configfile:
+    config = json.load(configfile)
+
+source_lines = None
+with open(config['program-location'], 'r') as infile:
+    source_lines = infile.read().split('\n')
+
+with open('program.java', 'w') as outfile:
+    log_removed = [
+        line
+        for line
+        in source_lines
+        if not any([ config_ignore in line
+                 for config_ignore 
+                 in config['ignore-match'] ])
     ]
-    executable_path = config['java-dir'] + '\\javac.exe'
-    print(argslist)
-    subprocess.Popen(argslist, executable=executable_path)
-    
+    res_string = '\n'.join(log_removed)
+    outfile.write(res_string)
+
+argslist = [
+    'javac',
+    config['program-location'],
+    '-d',
+    os.path.dirname(os.path.abspath(__file__))
+]
+executable_path = config['java-dir'] + '\\javac.exe'
+print(argslist)
+subprocess.Popen(argslist, executable=executable_path)
