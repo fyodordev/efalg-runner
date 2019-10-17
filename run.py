@@ -20,9 +20,20 @@ import json
 import subprocess
 import os
 from shutil import copyfile, rmtree
+from time import sleep
 
 import colored
 from colored import stylize
+
+
+def popen_timeout(argslist, executable_path, timeout):
+    p = subprocess.Popen(argslist, executable=executable_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    for t in range(int(timeout)):
+        sleep(0.001)
+        if p.poll() is not None:
+            return p.communicate()
+    p.kill()
+    return False
 
 def run_test(testname, config):
     os.mkdir(os.path.join('workingdir', testname))
@@ -41,16 +52,17 @@ def run_test(testname, config):
     ]
     os.chdir(os.path.join('workingdir', testname))
     executable_path = os.path.join(config['java-dir'], 'java.exe')
-    test_proc = subprocess.Popen(
-        argslist,
-        executable=executable_path,
-        stderr=subprocess.PIPE,
-        stdout=subprocess.PIPE
-    )
-    stdout, stderr = test_proc.communicate()
+
+    stdout = ''
+    stderr = '' 
+    communication = popen_timeout(argslist, executable_path, config['timeout'])
+    if communication == False:
+        stderr = f'Timeout after {config["timeout"]} ms.'
+    else:
+        stdout, stderr = communication
+        stdout = stdout.decode('utf-8').strip()
+        stderr = stderr.decode('utf-8').strip()
     os.chdir('../..')
-    stdout = stdout.decode('utf-8').strip()
-    stderr = stderr.decode('utf-8').strip()
     test_result = None
     test_summary = None 
     if len(stderr) == 0:
@@ -131,6 +143,6 @@ for test_dir in test_dirs:
     if stdout != '':
         print(stylize('  ' + stdout.replace('\n', '\n  '), colored.fg('yellow')))
     if stderr != '':
-        print(stylize(stderr, colored.fg('red')))
+        print(stylize('  ' + stderr.replace('\n', '\n  ') + '\n', colored.fg('red')))
     if test_summary is not None:
         print(test_summary)

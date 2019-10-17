@@ -3,7 +3,7 @@
     "program-location": "C:\\Users\\fjodo\\Desktop\\palindrom\\src\\Palindrom.java",
     "program-name": "Palindrom",
     "infile-name": "palindrom",
-    "timeout": "5000",
+    "timeout": "1000",
     "ignore-match": [
         "  System.out.println("
     ]
