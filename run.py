@@ -27,13 +27,17 @@ from colored import stylize
 
 
 def popen_timeout(argslist, executable_path, timeout):
-    p = subprocess.Popen(argslist, executable=executable_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    p = subprocess.Popen(argslist,
+                         executable=executable_path,
+                         stdout=subprocess.PIPE,
+                         stderr=subprocess.PIPE)
     for t in range(int(timeout)):
         sleep(0.001)
         if p.poll() is not None:
-            return p.communicate()
+            return (*p.communicate(), t)
     p.kill()
     return False
+
 
 def run_test(testname, config):
     os.mkdir(os.path.join('workingdir', testname))
@@ -45,26 +49,27 @@ def run_test(testname, config):
         os.path.join('tests', testname, config['infile-name'] + '.in'),
         os.path.join('workingdir', testname, config['infile-name'] + '.in')
     )
-    # Run program 
+    # Run program
     argslist = [
         'java',
-        config['program-name'], 
+        config['program-name'],
     ]
     os.chdir(os.path.join('workingdir', testname))
     executable_path = os.path.join(config['java-dir'], 'java.exe')
 
     stdout = ''
-    stderr = '' 
+    stderr = ''
+    exec_time = ''
     communication = popen_timeout(argslist, executable_path, config['timeout'])
-    if communication == False:
+    if not communication:
         stderr = f'Timeout after {config["timeout"]} ms.'
     else:
-        stdout, stderr = communication
+        stdout, stderr, exec_time = communication
         stdout = stdout.decode('utf-8').strip()
         stderr = stderr.decode('utf-8').strip()
     os.chdir('../..')
     test_result = None
-    test_summary = None 
+    test_summary = None
     if len(stderr) == 0:
         with open(os.path.join(
             'tests',
@@ -78,11 +83,12 @@ def run_test(testname, config):
             target_string = targetfile.read().strip()
             out_string = outfile.read().strip()
             if target_string == out_string:
-                test_result = stylize(f'{testname}: Correct.',
+                test_result = stylize(f'{testname}: Correct ({exec_time} ms).',
                                       colored.fg('green'),
                                       colored.attr('bold'))
             else:
-                test_result = stylize(f'{testname}: Incorrect.',
+                test_result = stylize(f'{testname}: Incorrect '
+                                      f'({exec_time} ms).',
                                       colored.fg('red'),
                                       colored.attr('bold'))
                 test_summary = (
@@ -111,9 +117,9 @@ with open((config['program-name'] + '.java'), 'w') as outfile:
         line
         for line
         in source_lines
-        if not any([ config_ignore in line
-                 for config_ignore 
-                 in config['ignore-match'] ])
+        if not any([config_ignore in line
+                    for config_ignore
+                    in config['ignore-match']])
     ]
     res_string = '\n'.join(log_removed)
     outfile.write(res_string)
@@ -141,8 +147,10 @@ for test_dir in test_dirs:
     stdout, stderr, test_result, test_summary = run_test(test_dir, config)
     print(test_result)
     if stdout != '':
-        print(stylize('  ' + stdout.replace('\n', '\n  '), colored.fg('yellow')))
+        print(stylize('  ' + stdout.replace('\n', '\n  '),
+              colored.fg('yellow')))
     if stderr != '':
-        print(stylize('  ' + stderr.replace('\n', '\n  ') + '\n', colored.fg('red')))
+        print(stylize('  ' + stderr.replace('\n', '\n  ') + '\n',
+              colored.fg('red')))
     if test_summary is not None:
         print(test_summary)
