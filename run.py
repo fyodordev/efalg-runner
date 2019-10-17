@@ -43,6 +43,19 @@ def popen_timeout(argslist, executable_path, timeout):
 
 
 def run_test(testname, config):
+    stdout = ''
+    stderr = ''
+    exec_time = ''
+    test_result = '' 
+    test_summary = '' 
+    # Get in and out filenames.
+    testpath = os.path.join('tests', testname)
+    all_files = [file
+                 for file
+                 in os.listdir(testpath)
+                 if os.path.isfile(os.path.join(testpath, file))]
+    in_file = [f for f in all_files if f.endswith('.in')][0]
+    out_file = [f for f in all_files if f.endswith('.out')][0]
     # Create test directory and copy files in there.
     os.mkdir(os.path.join('workingdir', testname))
     compiled_filename = config['program-name'] + '.class'
@@ -51,13 +64,10 @@ def run_test(testname, config):
         os.path.join('workingdir', testname, compiled_filename)
     )
     copyfile(
-        os.path.join('tests', testname, config['infile-name'] + '.in'),
-        os.path.join('workingdir', testname, config['infile-name'] + '.in')
+        os.path.join('tests', testname, in_file),
+        os.path.join('workingdir', testname, in_file)
     )
     # Run program and retrieve result.
-    stdout = ''
-    stderr = ''
-    exec_time = ''
     argslist = [
         'java',
         config['program-name'],
@@ -75,8 +85,6 @@ def run_test(testname, config):
         stderr = stderr.decode('utf-8').strip().replace('\n', '\n  ')
     # Compare with specified out file and format result.
     os.chdir('../..')
-    test_result = '' 
-    test_summary = '' 
     if len(stdout) != 0:
         stdout = stylize('\n  ' + stdout, colored.fg('yellow'))
     if len(stderr) == 0:
@@ -84,11 +92,11 @@ def run_test(testname, config):
         with open(os.path.join(
             'tests',
             testname,
-            config['infile-name'] + '.out'
+            out_file 
         ), 'r') as targetfile, open(os.path.join(
             'workingdir',
             testname,
-            config['infile-name'] + '.out'
+            out_file 
         ), 'r') as outfile:
             target_string = targetfile.read().strip()
             out_string = outfile.read().strip()
