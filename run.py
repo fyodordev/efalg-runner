@@ -1,9 +1,12 @@
 """
 In the config file, specify
-    Java program file location
-    Timeout duration
-    Array of substrings. Lines with these will be commented out or deleted.
-    java bin path.
+    * java-dir: Java program file location
+    * program-name: Class name of the Java program
+    * infile-name: Name of the test files
+    * timeout: Timeout duration in ms.
+    * ignore-match: Array of substrings.
+                  Lines with these will be commented out or deleted.
+    * java-dir: Java bin path.
 
 Upon running this main file:
     1. Replace strings as per rule (Remove system.out.println and the like)
@@ -31,7 +34,7 @@ def popen_timeout(argslist, executable_path, timeout):
                          executable=executable_path,
                          stdout=subprocess.PIPE,
                          stderr=subprocess.PIPE)
-    for t in range(int(timeout)):
+    for t in range(timeout):
         sleep(0.001)
         if p.poll() is not None:
             return (*p.communicate(), t)
@@ -40,7 +43,9 @@ def popen_timeout(argslist, executable_path, timeout):
 
 
 def run_test(testname, config):
+    # Create test directory and copy files in there.
     os.mkdir(os.path.join('workingdir', testname))
+    compiled_filename = config['program-name'] + '.class'
     copyfile(
         compiled_filename,
         os.path.join('workingdir', testname, compiled_filename)
@@ -49,28 +54,33 @@ def run_test(testname, config):
         os.path.join('tests', testname, config['infile-name'] + '.in'),
         os.path.join('workingdir', testname, config['infile-name'] + '.in')
     )
-    # Run program
+    # Run program and retrieve result.
+    stdout = ''
+    stderr = ''
+    exec_time = ''
     argslist = [
         'java',
         config['program-name'],
     ]
     os.chdir(os.path.join('workingdir', testname))
     executable_path = os.path.join(config['java-dir'], 'java.exe')
-
-    stdout = ''
-    stderr = ''
-    exec_time = ''
-    communication = popen_timeout(argslist, executable_path, config['timeout'])
+    communication = popen_timeout(argslist,
+                                  executable_path,
+                                  int(config['timeout']))
     if not communication:
-        stderr = f'Timeout after {config["timeout"]} ms.'
+        stderr = f'Timeout after {config["timeout"]} ms.\n'
     else:
         stdout, stderr, exec_time = communication
-        stdout = stdout.decode('utf-8').strip()
-        stderr = stderr.decode('utf-8').strip()
+        stdout = stdout.decode('utf-8').strip().replace('\n', '\n  ')
+        stderr = stderr.decode('utf-8').strip().replace('\n', '\n  ')
+    # Compare with specified out file and format result.
     os.chdir('../..')
-    test_result = None
-    test_summary = None
+    test_result = '' 
+    test_summary = '' 
+    if len(stdout) != 0:
+        stdout = stylize('\n  ' + stdout, colored.fg('yellow'))
     if len(stderr) == 0:
+        stderr = '  ' + stylize(stderr, colored.fg('red')) + '\n'
         with open(os.path.join(
             'tests',
             testname,
@@ -100,15 +110,14 @@ def run_test(testname, config):
                     + stylize(f'    {out_string}\n', colored.fg('red')))
     else:
         test_result = stylize(f'{testname}: Error.', colored.fg('red'))
-    return stdout, stderr, test_result, test_summary
+    return test_result + stdout + stderr + test_summary
 
 
 # Read config
 config = None
 with open('config.json', 'r') as configfile:
     config = json.load(configfile)
-
-# Copy file from specified location while filtering lines.
+# Copy source file from specified location while filtering lines.
 source_lines = None
 with open(config['program-location'], 'r') as infile:
     source_lines = infile.read().split('\n')
@@ -123,11 +132,8 @@ with open((config['program-name'] + '.java'), 'w') as outfile:
     ]
     res_string = '\n'.join(log_removed)
     outfile.write(res_string)
-
-source_filename = (config['program-name'] + '.java')
-compiled_filename = (config['program-name'] + '.class')
-
 # Compile the java code
+source_filename = config['program-name'] + '.java'
 argslist = [
     'javac',
     source_filename,
@@ -137,20 +143,12 @@ argslist = [
 executable_path = os.path.join(config['java-dir'], 'javac.exe')
 compile_proc = subprocess.Popen(argslist, executable=executable_path)
 compile_proc.wait()
-
-# Copy into all directories
+# Reset directory. 
 if os.path.isdir('workingdir'):
     rmtree('workingdir')
     os.mkdir('workingdir')
+# Test.
 test_dirs = os.listdir('tests')
 for test_dir in test_dirs:
-    stdout, stderr, test_result, test_summary = run_test(test_dir, config)
-    print(test_result)
-    if stdout != '':
-        print(stylize('  ' + stdout.replace('\n', '\n  '),
-              colored.fg('yellow')))
-    if stderr != '':
-        print(stylize('  ' + stderr.replace('\n', '\n  ') + '\n',
-              colored.fg('red')))
-    if test_summary is not None:
-        print(test_summary)
+    # Iterate through all defined tests.
+    print(run_test(test_dir, config))
