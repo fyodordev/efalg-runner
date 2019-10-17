@@ -119,7 +119,8 @@ with open('config.json', 'r') as configfile:
     config = json.load(configfile)
 # Copy source file from specified location while filtering lines.
 source_lines = None
-with open(config['program-location'], 'r') as infile:
+with open(os.path.join(config['program-location'],
+                       config['program-name'] + '.java'), 'r') as infile:
     source_lines = infile.read().split('\n')
 with open((config['program-name'] + '.java'), 'w') as outfile:
     log_removed = [
