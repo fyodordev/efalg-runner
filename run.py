@@ -21,6 +21,70 @@ import subprocess
 import os
 from shutil import copyfile, rmtree
 
+import colored
+from colored import stylize
+
+def run_test(testname, config):
+    os.mkdir(os.path.join('workingdir', testname))
+    copyfile(
+        compiled_filename,
+        os.path.join('workingdir', testname, compiled_filename)
+    )
+    copyfile(
+        os.path.join('tests', testname, config['infile-name'] + '.in'),
+        os.path.join('workingdir', testname, config['infile-name'] + '.in')
+    )
+    # Run program 
+    argslist = [
+        'java',
+        config['program-name'], 
+    ]
+    os.chdir(os.path.join('workingdir', testname))
+    executable_path = os.path.join(config['java-dir'], 'java.exe')
+    test_proc = subprocess.Popen(
+        argslist,
+        executable=executable_path,
+        stderr=subprocess.PIPE,
+        stdout=subprocess.PIPE
+    )
+    stdout, stderr = test_proc.communicate()
+    os.chdir('../..')
+    stdout = stdout.decode('utf-8').strip()
+    stderr = stderr.decode('utf-8').strip()
+    test_result = None
+    test_summary = None 
+    if len(stderr) == 0:
+        with open(os.path.join(
+            'tests',
+            testname,
+            config['infile-name'] + '.out'
+        ), 'r') as targetfile, open(os.path.join(
+            'workingdir',
+            testname,
+            config['infile-name'] + '.out'
+        ), 'r') as outfile:
+            target_string = targetfile.read().strip()
+            out_string = outfile.read().strip()
+            if target_string == out_string:
+                test_result = stylize(f'{testname}: Correct.',
+                                      colored.fg('green'),
+                                      colored.attr('bold'))
+            else:
+                test_result = stylize(f'{testname}: Incorrect.',
+                                      colored.fg('red'),
+                                      colored.attr('bold'))
+                test_summary = (
+                    '  ' + stylize('Expected output:\n',
+                                   colored.attr('underlined'))
+                    + stylize(f'    {target_string}\n', colored.attr('bold'))
+                    + '  ' + stylize('Actual output:\n',
+                                     colored.attr('underlined'))
+                    + stylize(f'    {out_string}\n', colored.fg('red')))
+    else:
+        test_result = stylize(f'{testname}: Error.', colored.fg('red'))
+    return stdout, stderr, test_result, test_summary
+
+
 # Read config
 config = None
 with open('config.json', 'r') as configfile:
@@ -62,28 +126,11 @@ if os.path.isdir('workingdir'):
     os.mkdir('workingdir')
 test_dirs = os.listdir('tests')
 for test_dir in test_dirs:
-    os.mkdir(os.path.join('workingdir', test_dir))
-    copyfile(compiled_filename,
-             os.path.join('workingdir', test_dir, compiled_filename))
-    copyfile(os.path.join('tests', test_dir, config['infile-name'] + '.in'),
-             os.path.join('workingdir', test_dir, config['infile-name'] + '.in'))
-    # Run program 
-    argslist = [
-        'java',
-        config['program-name'], 
-    ]
-    print(argslist)
-    os.chdir(os.path.join('workingdir', test_dir))
-    executable_path = os.path.join(config['java-dir'], 'java.exe')
-    test_proc = subprocess.Popen(
-        argslist,
-        executable=executable_path,
-        stderr=subprocess.PIPE,
-        stdout=subprocess.PIPE
-    )
-    stdout, stderr = test_proc.communicate()
-    stdout = stdout.decode('utf-8')
-    stderr = stderr.decode('utf-8')
-    print(stdout)
-    print(stderr)
-
+    stdout, stderr, test_result, test_summary = run_test(test_dir, config)
+    print(test_result)
+    if stdout != '':
+        print(stylize('  ' + stdout.replace('\n', '\n  '), colored.fg('yellow')))
+    if stderr != '':
+        print(stylize(stderr, colored.fg('red')))
+    if test_summary is not None:
+        print(test_summary)
