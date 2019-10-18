@@ -1,9 +1,11 @@
 {
     "java-dir": "C:\\Program Files\\Java\\jdk-11.0.2\\bin",
-    "program-location": "C:\\Users\\fjodo\\Desktop\\palindrom\\src",
-    "program-name": "Palindrom",
+    "program-location": "C:\\Users\\fjodo\\Documents\\repos\\efalg_uebung_1\\src",
+    "program-name": "NonogramSolver",
+    "infile-name": "nonogram",
     "timeout": "1000",
     "ignore-match": [
-        "  System.out.println("
+        "  System.out.println(",
+        "  log("
     ]
 }

@@ -45,9 +45,9 @@ def popen_timeout(argslist, executable_path, timeout):
 def run_test(testname, config):
     stdout = ''
     stderr = ''
-    exec_time = ''
-    test_result = '' 
-    test_summary = '' 
+    exec_time = 0
+    test_result = ''
+    test_summary = ''
     # Get in and out filenames.
     testpath = os.path.join('tests', testname)
     all_files = [file
@@ -65,7 +65,7 @@ def run_test(testname, config):
     )
     copyfile(
         os.path.join('tests', testname, in_file),
-        os.path.join('workingdir', testname, in_file)
+        os.path.join('workingdir', testname, config['infile-name'] + '.in')
     )
     # Run program and retrieve result.
     argslist = [
@@ -78,25 +78,24 @@ def run_test(testname, config):
                                   executable_path,
                                   int(config['timeout']))
     if not communication:
-        stderr = f'Timeout after {config["timeout"]} ms.\n'
+        stderr = f'Timeout after {config["timeout"]} ms.'
     else:
         stdout, stderr, exec_time = communication
-        stdout = stdout.decode('utf-8').strip().replace('\n', '\n  ')
-        stderr = stderr.decode('utf-8').strip().replace('\n', '\n  ')
+        stdout = stdout.decode('utf-8').strip().replace('\n', '\n    ')
+        stderr = stderr.decode('utf-8').strip().replace('\n', '\n    ')
     # Compare with specified out file and format result.
     os.chdir('../..')
     if len(stdout) != 0:
         stdout = stylize('\n  ' + stdout, colored.fg('yellow'))
     if len(stderr) == 0:
-        stderr = '  ' + stylize(stderr, colored.fg('red')) + '\n'
         with open(os.path.join(
             'tests',
             testname,
-            out_file 
+            out_file
         ), 'r') as targetfile, open(os.path.join(
             'workingdir',
             testname,
-            out_file 
+            config['infile-name'] + '.out'
         ), 'r') as outfile:
             target_string = targetfile.read().strip()
             out_string = outfile.read().strip()
@@ -117,7 +116,9 @@ def run_test(testname, config):
                                      colored.attr('underlined'))
                     + stylize(f'    {out_string}\n', colored.fg('red')))
     else:
-        test_result = stylize(f'{testname}: Error.', colored.fg('red'))
+        stderr = '\n    ' + stylize(stderr, colored.fg('red')) + '\n'
+        test_result = stylize(f'{testname}: Error ({exec_time} ms).',
+                              colored.fg('red'))
     return test_result + stdout + stderr + test_summary
 
 
@@ -152,7 +153,7 @@ argslist = [
 executable_path = os.path.join(config['java-dir'], 'javac.exe')
 compile_proc = subprocess.Popen(argslist, executable=executable_path)
 compile_proc.wait()
-# Reset directory. 
+# Reset directory.
 if os.path.isdir('workingdir'):
     rmtree('workingdir')
     os.mkdir('workingdir')
