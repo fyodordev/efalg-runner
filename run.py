@@ -45,7 +45,7 @@ def popen_timeout(argslist, executable_path, timeout):
     return False
 
 
-def run_test(testname, config):
+def run_test(testname, conf):
     stdout = ''
     stderr = ''
     exec_time = 0
@@ -61,27 +61,27 @@ def run_test(testname, config):
     out_file = [f for f in all_files if f.endswith('.out')][0]
     # Create test directory and copy files in there.
     os.mkdir(os.path.join('workingdir', testname))
-    compiled_filename = config['program-name'] + '.class'
+    compiled_filename = conf['program-name'] + '.class'
     copyfile(
         compiled_filename,
         os.path.join('workingdir', testname, compiled_filename)
     )
     copyfile(
         os.path.join('tests', testname, in_file),
-        os.path.join('workingdir', testname, config['infile-name'] + '.in')
+        os.path.join('workingdir', testname, conf['infile-name'] + '.in')
     )
     # Run program and retrieve result.
     argslist = [
         'java',
-        config['program-name'],
+        conf['program-name'],
     ]
     os.chdir(os.path.join('workingdir', testname))
-    executable_path = os.path.join(config['java-dir'], 'java.exe')
+    executable_path = os.path.join(conf['java-dir'], 'java.exe')
     communication = popen_timeout(argslist,
                                   executable_path,
-                                  int(config['timeout']))
+                                  int(conf['timeout']))
     if not communication:
-        stderr = f'Timeout after {config["timeout"]} ms.'
+        stderr = f'Timeout after {conf["timeout"]} ms.'
     else:
         stdout, stderr, exec_time = communication
         stdout = stdout.decode('utf-8').strip().replace('\n', '\n    ')
@@ -98,7 +98,7 @@ def run_test(testname, config):
         ), 'r') as targetfile, open(os.path.join(
             'workingdir',
             testname,
-            config['infile-name'] + '.out'
+            conf['infile-name'] + '.out'
         ), 'r') as outfile:
             target_string = targetfile.read().strip()
             out_string = outfile.read().strip()
@@ -136,8 +136,11 @@ if __name__ == '__main__':
         config = json.load(configfile)
     # Copy source file from specified location while filtering lines.
     source_lines = None
-    with open(os.path.join(config['program-location'],
-              config['program-name'] + '.java'), 'r') as infile:
+    program_location = os.path.join('src', config['program-name'] + '.java')
+    if 'program-location' in config:
+        program_location = os.path.join(config['program-location'],
+                                        config['program-name'] + '.java')
+    with open(program_location, 'r') as infile:
         source_lines = infile.read().split('\n')
     with open((config['program-name'] + '.java'), 'w') as outfile:
         log_removed = [
@@ -164,7 +167,7 @@ if __name__ == '__main__':
     # Reset directory.
     if os.path.isdir('workingdir'):
         rmtree('workingdir')
-        os.mkdir('workingdir')
+    os.mkdir('workingdir')
     # Test.
     test_dirs = os.listdir('tests')
     start = time.time()
