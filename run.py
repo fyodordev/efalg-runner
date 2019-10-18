@@ -22,8 +22,11 @@ Upon running this main file:
 import json
 import subprocess
 import os
+import time
 from shutil import copyfile, rmtree
 from time import sleep
+from multiprocessing import Pool
+import multiprocessing
 
 import colored
 from colored import stylize
@@ -122,43 +125,53 @@ def run_test(testname, config):
     return test_result + stdout + stderr + test_summary
 
 
-# Read config
-config = None
-with open('config.json', 'r') as configfile:
-    config = json.load(configfile)
-# Copy source file from specified location while filtering lines.
-source_lines = None
-with open(os.path.join(config['program-location'],
-                       config['program-name'] + '.java'), 'r') as infile:
-    source_lines = infile.read().split('\n')
-with open((config['program-name'] + '.java'), 'w') as outfile:
-    log_removed = [
-        line
-        for line
-        in source_lines
-        if not any([config_ignore in line
-                    for config_ignore
-                    in config['ignore-match']])
+def run_tuples(in_tuple):
+    return run_test(*in_tuple)
+
+
+if __name__ == '__main__':
+    # Read config
+    config = None
+    with open('config.json', 'r') as configfile:
+        config = json.load(configfile)
+    # Copy source file from specified location while filtering lines.
+    source_lines = None
+    with open(os.path.join(config['program-location'],
+              config['program-name'] + '.java'), 'r') as infile:
+        source_lines = infile.read().split('\n')
+    with open((config['program-name'] + '.java'), 'w') as outfile:
+        log_removed = [
+            line
+            for line
+            in source_lines
+            if not any([config_ignore in line
+                        for config_ignore
+                        in config['ignore-match']])
+        ]
+        res_string = '\n'.join(log_removed)
+        outfile.write(res_string)
+    # Compile the java code
+    source_filename = config['program-name'] + '.java'
+    argslist = [
+        'javac',
+        source_filename,
+        '-d',
+        os.path.dirname(os.path.abspath(__file__))
     ]
-    res_string = '\n'.join(log_removed)
-    outfile.write(res_string)
-# Compile the java code
-source_filename = config['program-name'] + '.java'
-argslist = [
-    'javac',
-    source_filename,
-    '-d',
-    os.path.dirname(os.path.abspath(__file__))
-]
-executable_path = os.path.join(config['java-dir'], 'javac.exe')
-compile_proc = subprocess.Popen(argslist, executable=executable_path)
-compile_proc.wait()
-# Reset directory.
-if os.path.isdir('workingdir'):
-    rmtree('workingdir')
-    os.mkdir('workingdir')
-# Test.
-test_dirs = os.listdir('tests')
-for test_dir in test_dirs:
-    # Iterate through all defined tests.
-    print(run_test(test_dir, config))
+    executable_path = os.path.join(config['java-dir'], 'javac.exe')
+    compile_proc = subprocess.Popen(argslist, executable=executable_path)
+    compile_proc.wait()
+    # Reset directory.
+    if os.path.isdir('workingdir'):
+        rmtree('workingdir')
+        os.mkdir('workingdir')
+    # Test.
+    test_dirs = os.listdir('tests')
+    start = time.time()
+    results = Pool().map(run_tuples, [(test_name, config)
+                                      for test_name
+                                      in test_dirs])
+    # Output results.
+    for result in results:
+        print(result)
+    print(f'\nFinished in {round(time.time() - start, 2)}s.')
