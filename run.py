@@ -28,8 +28,18 @@ from time import sleep
 from multiprocessing import Pool
 import multiprocessing
 
-import colored
-from colored import stylize
+try:
+    import colored
+    from colored import stylize
+except:
+    class Colored():
+        def fg(self, *args, **kwargs):
+            pass
+        def attr(self, *args, **kwargs):
+            pass
+    colored = Colored()
+    def stylize(some_string, *args, **kwargs):
+        return some_string
 
 
 def err(err_string):
