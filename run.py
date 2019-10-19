@@ -135,15 +135,19 @@ def run_test(testname, conf):
                                       colored.fg('red'),
                                       colored.attr('bold'))
                 test_summary = (
-                    '  ' + stylize('Expected output:\n',
+                    '\n  ' + stylize('Expected output:\n',
                                    colored.attr('underlined'))
                     + stylize(f'    {target_string}\n', colored.attr('bold'))
                     + '  ' + stylize('Actual output:\n',
                                      colored.attr('underlined'))
                     + err(f'    {out_string}\n'))
     else:
-        stderr = '\n    ' + err(stderr) + '\n'
-        test_result = err(f'{testname}: Error ({exec_time} ms).')
+        if not communication:
+            stderr = '' 
+            test_result = err(f'{testname}: Timeout after {conf["timeout"]} ms.')
+        else:
+            stderr = '\n    ' + err(stderr) + '\n'
+            test_result = err(f'{testname}: Error ({exec_time} ms).')
     return test_result + stdout + stderr + test_summary
 
 
@@ -229,7 +233,7 @@ def main():
         )]
     if len(test_dirs) == 0:
         return 'No valid test directories found.'
-    print('Compilation successful, running tests...')
+    print('Compilation successful, running tests...\n')
     start = time.time()
     for test_dir in test_dirs:
         prepare_test(test_dir, config)
