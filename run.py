@@ -32,6 +32,10 @@ import colored
 from colored import stylize
 
 
+def err(err_string):
+    return stylize(err_string, colored.fg('red'))
+
+
 def popen_timeout(argslist, executable_path, timeout):
     p = subprocess.Popen(argslist,
                          executable=executable_path,
@@ -117,11 +121,10 @@ def run_test(testname, conf):
                     + stylize(f'    {target_string}\n', colored.attr('bold'))
                     + '  ' + stylize('Actual output:\n',
                                      colored.attr('underlined'))
-                    + stylize(f'    {out_string}\n', colored.fg('red')))
+                    + err(f'    {out_string}\n'))
     else:
-        stderr = '\n    ' + stylize(stderr, colored.fg('red')) + '\n'
-        test_result = stylize(f'{testname}: Error ({exec_time} ms).',
-                              colored.fg('red'))
+        stderr = '\n    ' + err(stderr) + '\n'
+        test_result = err(f'{testname}: Error ({exec_time} ms).')
     return test_result + stdout + stderr + test_summary
 
 
@@ -129,30 +132,44 @@ def run_tuples(in_tuple):
     return run_test(*in_tuple)
 
 
-if __name__ == '__main__':
+def main():
     # Read config
     config = None
-    with open('config.json', 'r') as configfile:
-        config = json.load(configfile)
+    try:
+        with open('config.json', 'r') as configfile:
+            config = json.load(configfile)
+    except Exception as e:
+        return err('Error loading config.json: ' + str(e))
     # Copy source file from specified location while filtering lines.
-    source_lines = None
-    program_location = os.path.join('src', config['program-name'] + '.java')
-    if 'program-location' in config:
-        program_location = os.path.join(config['program-location'],
+    try:
+        source_lines = None
+        program_location = 'src'
+        if 'program-location' in config:
+            program_location = config['program-location']
+        if 'program-name' not in config:
+            config['program-name'] = [
+                f
+                for f
+                in os.listdir(program_location)
+                if f.endswith('.java')
+            ][0].replace('.java', '')
+        program_location = os.path.join(program_location,
                                         config['program-name'] + '.java')
-    with open(program_location, 'r') as infile:
-        source_lines = infile.read().split('\n')
-    with open((config['program-name'] + '.java'), 'w') as outfile:
-        log_removed = [
-            line
-            for line
-            in source_lines
-            if not any([config_ignore in line
-                        for config_ignore
-                        in config['ignore-match']])
-        ]
-        res_string = '\n'.join(log_removed)
-        outfile.write(res_string)
+        with open(program_location, 'r') as infile:
+            source_lines = infile.read().split('\n')
+        with open((config['program-name'] + '.java'), 'w') as outfile:
+            log_removed = [
+                line
+                for line
+                in source_lines
+                if not any([config_ignore in line
+                            for config_ignore
+                            in config['ignore-match']])
+            ]
+            res_string = '\n'.join(log_removed)
+            outfile.write(res_string)
+    except Exception as e:
+        return err('Error retrieving program source: ' + str(e))
     # Compile the java code
     source_filename = config['program-name'] + '.java'
     argslist = [
@@ -162,14 +179,38 @@ if __name__ == '__main__':
         os.path.dirname(os.path.abspath(__file__))
     ]
     executable_path = os.path.join(config['java-dir'], 'javac.exe')
-    compile_proc = subprocess.Popen(argslist, executable=executable_path)
-    compile_proc.wait()
+    comp_stdout, comp_stderr = subprocess.Popen(
+        argslist,
+        executable=executable_path,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE
+    ).communicate()
+    if len(comp_stderr) != 0:
+        return err('Compile error:\n' + comp_stderr.decode('utf-8').strip())
     # Reset directory.
+    if not os.path.isdir('tests'):
+        return 'No tests directory found.'
     if os.path.isdir('workingdir'):
         rmtree('workingdir')
     os.mkdir('workingdir')
     # Test.
-    test_dirs = os.listdir('tests')
+    test_dirs = [
+        test_dir
+        for test_dir
+        in os.listdir('tests')
+        if not (
+            len([f for f
+                 in os.listdir(os.path.join('tests', test_dir))
+                 if os.path.isfile(os.path.join('tests', test_dir, f))
+                 and f.endswith('.in')]) == 0
+            or len([f for f
+                    in os.listdir(os.path.join('tests', test_dir))
+                    if os.path.isfile(os.path.join('tests', test_dir, f))
+                    and f.endswith('.out')]) == 0
+        )]
+    if len(test_dirs) == 0:
+        return 'No valid test directories found.'
+    print('Compilation successful, running tests...')
     start = time.time()
     results = Pool().map(run_tuples, [(test_name, config)
                                       for test_name
@@ -177,4 +218,8 @@ if __name__ == '__main__':
     # Output results.
     for result in results:
         print(result)
-    print(f'\nFinished in {round(time.time() - start, 2)}s.')
+    return f'\nFinished in {round(time.time() - start, 2)}s.'
+
+
+if __name__ == '__main__':
+    print(main())
