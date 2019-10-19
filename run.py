@@ -49,20 +49,14 @@ def popen_timeout(argslist, executable_path, timeout):
     return False
 
 
-def run_test(testname, conf):
-    stdout = ''
-    stderr = ''
-    exec_time = 0
-    test_result = ''
-    test_summary = ''
-    # Get in and out filenames.
+def prepare_test(testname, conf):
+    # Get in filename.
     testpath = os.path.join('tests', testname)
     all_files = [file
                  for file
                  in os.listdir(testpath)
                  if os.path.isfile(os.path.join(testpath, file))]
     in_file = [f for f in all_files if f.endswith('.in')][0]
-    out_file = [f for f in all_files if f.endswith('.out')][0]
     # Create test directory and copy files in there.
     os.mkdir(os.path.join('workingdir', testname))
     compiled_filename = conf['program-name'] + '.class'
@@ -74,6 +68,21 @@ def run_test(testname, conf):
         os.path.join('tests', testname, in_file),
         os.path.join('workingdir', testname, conf['infile-name'] + '.in')
     )
+
+
+def run_test(testname, conf):
+    stdout = ''
+    stderr = ''
+    exec_time = 0
+    test_result = ''
+    test_summary = ''
+    # Get out filename.
+    testpath = os.path.join('tests', testname)
+    all_files = [file
+                 for file
+                 in os.listdir(testpath)
+                 if os.path.isfile(os.path.join(testpath, file))]
+    out_file = [f for f in all_files if f.endswith('.out')][0]
     # Run program and retrieve result.
     argslist = [
         'java',
@@ -212,6 +221,8 @@ def main():
         return 'No valid test directories found.'
     print('Compilation successful, running tests...')
     start = time.time()
+    for test_dir in test_dirs:
+        prepare_test(test_dir, config)
     results = Pool().map(run_tuples, [(test_name, config)
                                       for test_name
                                       in test_dirs])
