@@ -112,7 +112,7 @@ def run_test(testname, conf):
     # Compare with specified out file and format result.
     os.chdir('../..')
     if len(stdout) != 0:
-        stdout = stylize('\n  ' + stdout, colored.fg('yellow'))
+        stdout = stylize('\n    ' + stdout, colored.fg('yellow'))
     if len(stderr) == 0:
         with open(os.path.join(
             'tests',
