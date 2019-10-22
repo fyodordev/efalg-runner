@@ -123,8 +123,8 @@ def run_test(testname, conf):
             testname,
             conf['infile-name'] + '.out'
         ), 'r') as outfile:
-            target_string = targetfile.read().strip()
-            out_string = outfile.read().strip()
+            target_string = targetfile.read().strip().replace('\n', '\n    ')
+            out_string = outfile.read().strip().replace('\n', '\n    ')
             if target_string == out_string:
                 test_result = stylize(f'{testname}: Correct ({exec_time} ms).',
                                       colored.fg('green'),
