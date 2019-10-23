@@ -27,6 +27,7 @@ from shutil import copyfile, rmtree
 from time import sleep
 from multiprocessing import Pool
 import multiprocessing
+import sys
 
 try:
     import colored
@@ -164,6 +165,9 @@ def main():
     except Exception as e:
         return err('Error loading config.json: ' + str(e))
     # Copy source file from specified location while filtering lines.
+    cleanLines = False
+    if len(sys.argv) > 1 and sys.argv[1] == 'clean':
+        cleanLines = True
     try:
         source_lines = None
         program_location = 'src'
@@ -181,15 +185,17 @@ def main():
         with open(program_location, 'r') as infile:
             source_lines = infile.read().split('\n')
         with open((config['program-name'] + '.java'), 'w') as outfile:
-            log_removed = [
-                line
-                for line
-                in source_lines
-                if not any([config_ignore in line
-                            for config_ignore
-                            in config['ignore-match']])
-            ]
-            res_string = '\n'.join(log_removed)
+            finalLines = source_lines 
+            if cleanLines:
+                finalLines = [
+                    line
+                    for line
+                    in source_lines
+                    if not any([config_ignore in line
+                                for config_ignore
+                                in config['ignore-match']])
+                ]
+            res_string = '\n'.join(finalLines)
             outfile.write(res_string)
     except Exception as e:
         return err('Error retrieving program source: ' + str(e))

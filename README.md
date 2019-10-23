@@ -2,10 +2,10 @@
 
 Runs tests of Java algorithms which use .in/.out files. Helper script written for tasks of a computer science course (Efficient Algorithms).
 
-- Remove console logs.
+- Remove console logs and other unwanted lines.
 - Output discreptancy between actual and expected output.
 - Output stack trace on error.
-- Specify timeout
+- Specify timeout.
 - Run tests in parallel.
 
 ![sample_output](https://user-images.githubusercontent.com/5418277/67145172-67ef1180-f27f-11e9-9d75-b8aac49ffe95.JPG)
@@ -18,7 +18,7 @@ Runs tests of Java algorithms which use .in/.out files. Helper script written fo
 2. Run `pip install colored` if you want colors in your terminal.
 3. In the `config.json` specify your Java bin path and the .in/.out filename that your program accepts.
 3. Specify tests by creating a directory for each test in a `tests` directory, and putting a .in and .out (expected output) file into each.
-4. run `run.py`.
+4. run `python run.py` or `python run.py clean` if you want your source file to be cleaned of certain lines according to your specification in the `config.json` file.
 
 Example directory structure:
 ```
@@ -59,7 +59,7 @@ Setup configuration `config.json` file as follows:
 - `program-location` (optional): Absolute path of directory where the source file of your program resides. May be omitted if your source file resides in the `src` folder of the script directory.
 - `program-name` (optional): Class and filename of your program. May be omitted if you hava only one Java file in the search directory.
 - `timeout`: Maximum run time of any single test in ms.
-- `ignore-match`: Array of strings for cleaning up log statements. Any lines of your source file that have these as a substring will be removed before compilation.
+- `ignore-match`: Array of strings for cleaning up log statements. Any lines of your source file that have these as a substring will be removed before compilation IF the script is run with the argument `clean`.
 
 
 Example config.json:
