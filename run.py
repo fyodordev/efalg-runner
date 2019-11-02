@@ -97,6 +97,7 @@ def run_test(testname, conf):
     # Run program and retrieve result.
     argslist = [
         'java',
+        '-ea',
         conf['program-name'],
     ]
     os.chdir(os.path.join('workingdir', testname))
